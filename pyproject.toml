@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dukascopy-tick-data-fetcher"
+version = "1.0.0"
+description = "A tick data fetcher and parser for downloading tick data from the Dukascopy server"
+authors = [
+    {name = "Dale Woods", email = "dalewoods007@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pandas>=1.5.0",
+    "pytz>=2022.1", 
+    "python-dateutil>=2.8.2",
+    "dukascopy_python>=1.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-xdist>=2.5.0",
+    "pytest-html>=3.1.0",
+    "pytest-benchmark>=4.0.0",
+    "factory-boy>=3.2.0",
+    "freezegun>=1.2.0",
+    "responses>=0.20.0",
+    "ipython>=8.0.0",
+    "ipdb>=0.13.0",
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/dukascopy_tick_data_fetcher.py"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*" 
+python_functions = "test_*"
+addopts = "-v --tb=short"

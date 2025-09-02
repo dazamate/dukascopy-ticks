@@ -1,0 +1,25 @@
+from dukascopy_tick_data_fetcher import Dukascopy_Tick_Data_Fetcher
+
+# Initialize the fetcher for GMT+3
+fetcher = Dukascopy_Tick_Data_Fetcher()
+
+# set your broker's timezone so it matches with your broker's candle times and factors in day light savings
+fetcher.set_broker_timezone("Europe/Helsinki")
+
+# Define the symbols to fetch by making tuples of the duskacopy symbol and mapping it to your broker's verion of that symbol
+symbols_to_get = [    
+    ("XAU/USD", "XAUUSD"),
+    ("GBP/AUD", "GBPAUD"),
+    ("EUR/NZD", "EURNZD"),
+    ("EUR/USD", "EURUSD"),
+    ("GBP/JPY", "GBPJPY"),
+    ("USD/JPY", "USDJPY"),
+    ("USA500.IDX/USD", "US500"),
+    ("USA30.IDX/USD", "US30")
+]
+
+# Define the output directory
+output_directory = "tick_data"
+
+# Get the last 2 months of data
+fetcher.get(months_to_fetch=4, symbols=symbols_to_get, output_dir=output_directory)
