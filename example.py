@@ -21,5 +21,5 @@ symbols_to_get = [
 # Define the output directory
 output_directory = "tick_data"
 
-# Get the last 2 months of data
+# Get the last 4 months of data
 fetcher.get(months_to_fetch=4, symbols=symbols_to_get, output_dir=output_directory)
