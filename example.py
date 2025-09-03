@@ -20,6 +20,13 @@ symbols_to_get = [
 
 # Define the output directory
 output_directory = "tick_data"
+broker_ticks_output_directory = "mql5_tick_data" # the directory where tick data compiled into a csv + tz conversion go
 
 # Get the last 4 months of data
-fetcher.get(months_to_fetch=4, symbols=symbols_to_get, output_dir=output_directory)
+fetcher.get(
+    months_to_fetch=4,
+    symbols=symbols_to_get,
+    tick_data_repo_dir=output_directory,
+    broker_ticks_output_dir=broker_ticks_output_directory,
+    date_suffix_on_output_csv_file=False
+)

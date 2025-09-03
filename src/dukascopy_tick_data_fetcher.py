@@ -9,7 +9,15 @@ class Dukascopy_Tick_Data_Fetcher:
     def __init__(self):
         self.broker_timezone = "Europe/Helsinki"
 
-    def get(self, months_to_fetch: int, symbols: list[tuple[str, str]], tick_data_repo_dir: str, broker_ticks_output_dir: str, broker_timezone: str = None):
+    def get(
+            self,
+            months_to_fetch: int,
+            symbols: list[tuple[str, str]],
+            tick_data_repo_dir: str,
+            broker_ticks_output_dir: str,
+            broker_timezone: str = None,
+            date_suffix_on_output_csv_file: bool = False
+        ):
         os.makedirs(tick_data_repo_dir, exist_ok=True)
         os.makedirs(broker_ticks_output_dir, exist_ok=True)
 
@@ -79,9 +87,14 @@ class Dukascopy_Tick_Data_Fetcher:
 
             processed_df = raw_df.tz_convert(target_tz)
 
-            today_str = datetime.now().strftime('%Y-%m-%d')
             tz_suffix = target_tz_str.replace('/', '_')
-            output_filename = f"{target_symbol}-{tz_suffix}-{today_str}.csv"
+
+            if date_suffix_on_output_csv_file:
+                today_str = datetime.now().strftime('%Y-%m-%d')
+                output_filename = f"{target_symbol}-{tz_suffix}-{today_str}.csv"
+            else:
+                output_filename = f"{target_symbol}-{tz_suffix}.csv"
+
             output_path = os.path.join(broker_ticks_output_dir, output_filename)
             
             processed_df.to_csv(output_path)
