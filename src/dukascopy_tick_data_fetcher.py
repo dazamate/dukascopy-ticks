@@ -9,11 +9,9 @@ class Dukascopy_Tick_Data_Fetcher:
     def __init__(self):
         self.broker_timezone = "Europe/Helsinki"
 
-    def get(self, months_to_fetch: int, symbols: list[tuple[str, str]], output_dir: str, broker_timezone: str = None):
-        raw_data_dir = os.path.join(output_dir, "raw_dukascopy_data")
-        final_output_dir = os.path.join(output_dir, "processed_data")
-        os.makedirs(raw_data_dir, exist_ok=True)
-        os.makedirs(final_output_dir, exist_ok=True)
+    def get(self, months_to_fetch: int, symbols: list[tuple[str, str]], tick_data_repo_dir: str, broker_ticks_output_dir: str, broker_timezone: str = None):
+        os.makedirs(tick_data_repo_dir, exist_ok=True)
+        os.makedirs(broker_ticks_output_dir, exist_ok=True)
 
         target_tz_str = broker_timezone if broker_timezone is not None else self.broker_timezone
         target_tz = pytz.timezone(target_tz_str)
@@ -30,7 +28,7 @@ class Dukascopy_Tick_Data_Fetcher:
             print("-" * 50)
             print(f"Processing symbol: {dukascopy_symbol} (Target: {target_symbol})")
             
-            symbol_path = os.path.join(raw_data_dir, dukascopy_symbol.replace('/', '_'))
+            symbol_path = os.path.join(tick_data_repo_dir, dukascopy_symbol.replace('/', '_'))
             os.makedirs(symbol_path, exist_ok=True)
 
             local_df = self._load_local_data(symbol_path, start_date, end_date)
@@ -84,7 +82,7 @@ class Dukascopy_Tick_Data_Fetcher:
             today_str = datetime.now().strftime('%Y-%m-%d')
             tz_suffix = target_tz_str.replace('/', '_')
             output_filename = f"{target_symbol}-{tz_suffix}-{today_str}.csv"
-            output_path = os.path.join(final_output_dir, output_filename)
+            output_path = os.path.join(broker_ticks_output_dir, output_filename)
             
             processed_df.to_csv(output_path)
             print(f"Successfully saved processed data to: {output_path}")
