@@ -32,75 +32,94 @@ class Dukascopy_Tick_Data_Fetcher:
         
         print(f"Required data range: {start_date.strftime('%Y-%m-%d %H:%M')} to {end_date.strftime('%Y-%m-%d %H:%M')} UTC")
 
+        tz_suffix = target_tz_str.replace('/', '_')
+
         for dukascopy_symbol, target_symbol in symbols:
             print("-" * 50)
             print(f"Processing symbol: {dukascopy_symbol} (Target: {target_symbol})")
-            
+
             symbol_path = os.path.join(tick_data_repo_dir, dukascopy_symbol.replace('/', '_'))
             os.makedirs(symbol_path, exist_ok=True)
-
-            local_df = self._load_local_data(symbol_path, start_date, end_date)
-            
-            fetch_start_date = start_date
-            dfs_to_combine = []
-
-            if not local_df.empty:
-                last_local_timestamp = local_df.index.max()
-                print(f"Found local data up to {last_local_timestamp.strftime('%Y-%m-%d %H:%M')}")
-                
-                # Overlap rule: re-fetch from the start of the last day to ensure data completeness.
-                fetch_start_date = last_local_timestamp.floor('D')
-                
-                # Discard the last partial day from local data to prevent duplicate entries after fetching.
-                clean_local_df = local_df[local_df.index < fetch_start_date]
-                if not clean_local_df.empty:
-                    dfs_to_combine.append(clean_local_df)
-            else:
-                print("No local data found for this range.")
-
-            if fetch_start_date < end_date:
-                print(f"Fetching new data from Dukascopy: {fetch_start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-                try:
-                    new_df = self._fetch_from_dukascopy(dukascopy_symbol, fetch_start_date, end_date)
-                    if not new_df.empty:
-                        self._save_local_data(symbol_path, new_df)
-                        dfs_to_combine.append(new_df)
-                except Exception as e:
-                    print(f"  ERROR fetching data for {dukascopy_symbol}: {e}")
-                    continue
-            else:
-                print("Local data is up-to-date. No download needed.")
-
-            if not dfs_to_combine:
-                print(f"No data available for {dukascopy_symbol} in the total specified range.")
-                continue
-
-            raw_df = pd.concat(dfs_to_combine)
-            raw_df = raw_df[~raw_df.index.duplicated(keep='first')]
-            raw_df.sort_index(inplace=True)
-            
-            raw_df = raw_df.loc[start_date:end_date]
-
-            if raw_df.empty:
-                print(f"Final dataset is empty for {dukascopy_symbol} after processing.")
-                continue
-
-            processed_df = raw_df.tz_convert(target_tz)
-
-            tz_suffix = target_tz_str.replace('/', '_')
 
             if date_suffix_on_output_csv_file:
                 today_str = datetime.now().strftime('%Y-%m-%d')
                 output_filename = f"{target_symbol}-{tz_suffix}-{today_str}.csv"
             else:
                 output_filename = f"{target_symbol}-{tz_suffix}.csv"
-
             output_path = os.path.join(broker_ticks_output_dir, output_filename)
-            
-            processed_df.to_csv(output_path)
-            print(f"Successfully saved processed data to: {output_path}")
-            print(f"  First timestamp: {processed_df.index[0]}")
-            print(f"  Last timestamp:  {processed_df.index[-1]}")
+
+            first_month_output = True
+            month_cursor = start_date
+            total_ticks = 0
+
+            while month_cursor < end_date:
+                month_start = month_cursor.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                month_end = month_start + relativedelta(months=1)
+                if month_end > end_date:
+                    month_end = end_date
+
+                print(f"  Month {month_start.strftime('%Y-%m')}: ", end="", flush=True)
+
+                local_df = self._load_local_data(symbol_path, month_start, month_end)
+
+                fetch_start = month_start
+                dfs_to_combine = []
+
+                if not local_df.empty:
+                    last_local_ts = local_df.index.max()
+                    fetch_start = last_local_ts.floor('D')
+                    clean_local = local_df[local_df.index < fetch_start]
+                    if not clean_local.empty:
+                        dfs_to_combine.append(clean_local)
+
+                if fetch_start < month_end:
+                    try:
+                        new_df = self._fetch_from_dukascopy(dukascopy_symbol, fetch_start, month_end)
+                        if not new_df.empty:
+                            self._save_local_data(symbol_path, new_df)
+                            dfs_to_combine.append(new_df)
+                    except Exception as e:
+                        print(f"ERROR: {e}")
+                else:
+                    print("cached", end="", flush=True)
+
+                if not dfs_to_combine:
+                    print(" - no data")
+                    month_cursor = month_end
+                    continue
+
+                month_df = pd.concat(dfs_to_combine)
+                month_df = month_df[~month_df.index.duplicated(keep='first')]
+                month_df.sort_index(inplace=True)
+
+                clip_start = max(month_start, start_date)
+                clip_end = min(month_end, end_date)
+                month_df = month_df.loc[clip_start:clip_end]
+
+                if month_df.empty:
+                    print(" - empty after clip")
+                    month_cursor = month_end
+                    continue
+
+                month_df = month_df.tz_convert(target_tz)
+
+                if first_month_output:
+                    month_df.to_csv(output_path, mode='w')
+                    first_month_output = False
+                else:
+                    month_df.to_csv(output_path, mode='a', header=False)
+
+                month_ticks = len(month_df)
+                total_ticks += month_ticks
+                print(f"{month_ticks} ticks")
+
+                month_cursor = month_end
+
+            if total_ticks == 0:
+                print(f"  No data available for {dukascopy_symbol} in the specified range.")
+                continue
+
+            print(f"  Saved {total_ticks} ticks to {output_path}")
 
     def _load_local_data(self, symbol_path: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
         dfs = []
